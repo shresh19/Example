@@ -1,0 +1,819 @@
+1. StartApp.js
+
+package com.yourcompany.payroll;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class PayrollApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(PayrollApplication.class, args);
+    }
+
+}
+
+
+2. config package
+2.1 CorsConfig.java
+
+package com.yourcompany.payroll.config;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.web.servlet.config.annotation.CorsRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+
+@Configuration
+public class CorsConfig {
+
+    @Bean
+    public WebMvcConfigurer corsConfigurer() {
+        return new WebMvcConfigurer() {
+            @Override
+            public void addCorsMappings(CorsRegistry registry) {
+                registry.addMapping("/api/**") // Apply CORS to your API endpoints
+                        .allowedOrigins("http://localhost:3000") // Allow your React app's origin
+                        .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                        .allowedHeaders("*")
+                        .allowCredentials(true);
+            }
+        };
+    }
+}
+
+
+3. model package
+3.1 Batch.java
+
+package com.yourcompany.payroll.model;
+
+import jakarta.persistence.*;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
+@Entity
+@Table(name = "payroll_batches")
+public class Batch {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false, length = 100)
+    private String name;
+
+    @Column(name = "payment_count")
+    private int paymentCount = 0;
+
+    @Column(name = "last_payment_date")
+    private LocalDateTime lastPaymentDate;
+
+    @Column(name = "payment_status", length = 20)
+    private String paymentStatus = "Pending"; // Default status set to Pending
+
+    @OneToMany(mappedBy = "batch", cascade = {CascadeType.PERSIST, CascadeType.MERGE}, fetch = FetchType.LAZY)
+    private List<Employee> employees = new ArrayList<>();
+
+    // --- Constructors ---
+    public Batch() {
+    }
+
+    public Batch(String name) {
+        this.name = name;
+    }
+
+    // --- Getters and Setters ---
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+    public int getPaymentCount() { return paymentCount; }
+    public void setPaymentCount(int paymentCount) { this.paymentCount = paymentCount; }
+    public LocalDateTime getLastPaymentDate() { return lastPaymentDate; }
+    public void setLastPaymentDate(LocalDateTime lastPaymentDate) { this.lastPaymentDate = lastPaymentDate; }
+    public String getPaymentStatus() { return paymentStatus; }
+    public void setPaymentStatus(String paymentStatus) { this.paymentStatus = paymentStatus; }
+    public List<Employee> getEmployees() { return employees; }
+    public void setEmployees(List<Employee> employees) { this.employees = employees; }
+
+    // --- Convenience Methods ---
+    public void addEmployee(Employee employee) {
+        this.employees.add(employee);
+        employee.setBatch(this);
+    }
+    public void removeEmployee(Employee employee) {
+        this.employees.remove(employee);
+        employee.setBatch(null);
+    }
+
+    // --- toString, equals, hashCode ---
+    @Override
+    public String toString() {
+        return "Batch{" + "id=" + id + ", name='" + name + '\'' + ", paymentCount=" + paymentCount + ", lastPaymentDate=" + lastPaymentDate + ", paymentStatus='" + paymentStatus + '\'' + '}';
+    }
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Batch batch = (Batch) o;
+        return id != null && id.equals(batch.id);
+    }
+    @Override
+    public int hashCode() { return getClass().hashCode(); }
+}
+
+
+3.2 Employee.java
+
+package com.yourcompany.payroll.model;
+
+import jakarta.persistence.*;
+import java.math.BigDecimal;
+
+@Entity
+@Table(name = "employees")
+public class Employee {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false, length = 100)
+    private String name;
+
+    @Column(name = "salary_amount", nullable = false, precision = 10, scale = 2)
+    private BigDecimal salaryAmount;
+
+    @Column(name = "bank_details", nullable = false, length = 100)
+    private String bankDetails;
+
+    @Column(name = "payment_ref", length = 50)
+    private String paymentRef;
+
+    @Column(name = "department", length = 50) // Changed column name
+    private String department; // Changed field name
+
+    @Column(length = 255)
+    private String notes;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "batch_id")
+    private Batch batch;
+
+    // --- Constructors ---
+    public Employee() {
+    }
+
+    public Employee(String name, BigDecimal salaryAmount, String bankDetails, String paymentRef, String department, String notes) {
+        this.name = name;
+        this.salaryAmount = salaryAmount;
+        this.bankDetails = bankDetails;
+        this.paymentRef = paymentRef;
+        this.department = department; // Changed parameter name
+        this.notes = notes;
+    }
+
+    // --- Getters and Setters ---
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+    public BigDecimal getSalaryAmount() { return salaryAmount; }
+    public void setSalaryAmount(BigDecimal salaryAmount) { this.salaryAmount = salaryAmount; }
+    public String getBankDetails() { return bankDetails; }
+    public void setBankDetails(String bankDetails) { this.bankDetails = bankDetails; }
+    public String getPaymentRef() { return paymentRef; }
+    public void setPaymentRef(String paymentRef) { this.paymentRef = paymentRef; }
+    public String getDepartment() { return department; }
+    public void setDepartment(String department) { this.department = department; }
+    public String getNotes() { return notes; }
+    public void setNotes(String notes) { this.notes = notes; }
+    public Batch getBatch() { return batch; }
+    public void setBatch(Batch batch) { this.batch = batch; }
+
+    // --- toString, equals, hashCode ---
+     @Override
+    public String toString() {
+        return "Employee{" + "id=" + id + ", name='" + name + '\'' + ", salaryAmount=" + salaryAmount + ", bankDetails='" + bankDetails + '\'' + ", paymentRef='" + paymentRef + '\'' + ", department='" + department + '\'' + ", notes='" + notes + '\'' + ", batchId=" + (batch != null ? batch.getId() : "null") + '}';
+    }
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Employee employee = (Employee) o;
+        return id != null && id.equals(employee.id);
+    }
+    @Override
+    public int hashCode() { return getClass().hashCode(); }
+}
+
+
+3.3 BankAccount.java
+
+package com.yourcompany.payroll.model;
+
+import jakarta.persistence.*;
+import java.math.BigDecimal;
+
+@Entity
+@Table(name = "bank_accounts")
+public class BankAccount {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false, unique = true, length = 100)
+    private String accountNumber;
+
+    @Column(length = 100)
+    private String accountName;
+
+    @Column(nullable = false, precision = 12, scale = 2)
+    private BigDecimal balance;
+
+    // --- Constructors ---
+    public BankAccount() {
+    }
+
+    public BankAccount(String accountNumber, String accountName, BigDecimal balance) {
+        this.accountNumber = accountNumber;
+        this.accountName = accountName;
+        this.balance = balance;
+    }
+
+    // --- Getters and Setters ---
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    public String getAccountNumber() { return accountNumber; }
+    public void setAccountNumber(String accountNumber) { this.accountNumber = accountNumber; }
+    public String getAccountName() { return accountName; }
+    public void setAccountName(String accountName) { this.accountName = accountName; }
+    public BigDecimal getBalance() { return balance; }
+    public void setBalance(BigDecimal balance) { this.balance = balance; }
+
+    // --- toString, equals, hashCode ---
+    @Override
+    public String toString() {
+        return "BankAccount{" + "id=" + id + ", accountNumber='" + accountNumber + '\'' + ", accountName='" + accountName + '\'' + ", balance=" + balance + '}';
+    }
+     @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        BankAccount that = (BankAccount) o;
+        return id != null && id.equals(that.id);
+    }
+    @Override
+    public int hashCode() { return getClass().hashCode(); }
+}
+
+
+
+4. repository package
+
+4.1 BatchRepository.java
+
+package com.yourcompany.payroll.repository;
+
+import com.yourcompany.payroll.model.Batch;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+
+@Repository
+public interface BatchRepository extends JpaRepository<Batch, Long> {
+
+}
+
+4.2 EmployeeRepository.java
+
+package com.yourcompany.payroll.repository;
+
+import com.yourcompany.payroll.model.Employee;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+
+@Repository
+public interface EmployeeRepository extends JpaRepository<Employee, Long> {
+
+    List<Employee> findByBatchId(Long batchId);
+
+    long countByBatchId(Long batchId); // Method to count employees by batch ID
+
+    @Modifying
+    @Query("UPDATE Employee e SET e.batch = null WHERE e.batch.id = :batchId")
+    int unassignEmployeesByBatchId(@Param("batchId") Long batchId);
+
+}
+
+4.3 BankAccountRepository.java
+
+package com.yourcompany.payroll.repository;
+
+import com.yourcompany.payroll.model.BankAccount;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.Optional;
+
+@Repository
+public interface BankAccountRepository extends JpaRepository<BankAccount, Long> {
+
+    Optional<BankAccount> findByAccountNumber(String accountNumber);
+}
+
+
+5. dto package
+5.1 CreateBatchRequestDto.java
+
+package com.yourcompany.payroll.controller.dto;
+
+public class CreateBatchRequestDto {
+
+    private String name;
+
+    public CreateBatchRequestDto() { }
+    public CreateBatchRequestDto(String name) { this.name = name; }
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+}
+
+5.2 BatchDto.java
+package com.yourcompany.payroll.controller.dto;
+
+import java.time.LocalDateTime;
+
+public class BatchDto {
+    private Long id;
+    private String name;
+    private int paymentCount;
+    private LocalDateTime lastPaymentDate;
+    private String paymentStatus;
+    private long employeeCount; // Use long
+
+    public BatchDto() {}
+
+    public BatchDto(Long id, String name, int paymentCount, LocalDateTime lastPaymentDate, String paymentStatus, long employeeCount) { // Use long
+        this.id = id;
+        this.name = name;
+        this.paymentCount = paymentCount;
+        this.lastPaymentDate = lastPaymentDate;
+        this.paymentStatus = paymentStatus;
+        this.employeeCount = employeeCount;
+    }
+
+    // Getters and Setters
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+    public int getPaymentCount() { return paymentCount; }
+    public void setPaymentCount(int paymentCount) { this.paymentCount = paymentCount; }
+    public LocalDateTime getLastPaymentDate() { return lastPaymentDate; }
+    public void setLastPaymentDate(LocalDateTime lastPaymentDate) { this.lastPaymentDate = lastPaymentDate; }
+    public String getPaymentStatus() { return paymentStatus; }
+    public void setPaymentStatus(String paymentStatus) { this.paymentStatus = paymentStatus; }
+    public long getEmployeeCount() { return employeeCount; } // Use long
+    public void setEmployeeCount(long employeeCount) { this.employeeCount = employeeCount; } // Use long
+}
+
+5.3 EmployeeDto.java
+
+package com.yourcompany.payroll.controller.dto;
+
+import java.math.BigDecimal;
+
+public class EmployeeDto {
+    private Long id;
+    private String name;
+    private BigDecimal salaryAmount;
+    private String bankDetails;
+    private String paymentRef;
+    private String department; // Changed field name
+    private String notes;
+    private Long batchId;
+
+    public EmployeeDto() {}
+
+     public EmployeeDto(Long id, String name, BigDecimal salaryAmount, String bankDetails, String paymentRef, String department, String notes, Long batchId) {
+        this.id = id;
+        this.name = name;
+        this.salaryAmount = salaryAmount;
+        this.bankDetails = bankDetails;
+        this.paymentRef = paymentRef;
+        this.department = department; // Changed parameter name
+        this.notes = notes;
+        this.batchId = batchId;
+    }
+
+    // Getters and Setters
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+    public BigDecimal getSalaryAmount() { return salaryAmount; }
+    public void setSalaryAmount(BigDecimal salaryAmount) { this.salaryAmount = salaryAmount; }
+    public String getBankDetails() { return bankDetails; }
+    public void setBankDetails(String bankDetails) { this.bankDetails = bankDetails; }
+    public String getPaymentRef() { return paymentRef; }
+    public void setPaymentRef(String paymentRef) { this.paymentRef = paymentRef; }
+    public String getDepartment() { return department; }
+    public void setDepartment(String department) { this.department = department; }
+    public String getNotes() { return notes; }
+    public void setNotes(String notes) { this.notes = notes; }
+    public Long getBatchId() { return batchId; }
+    public void setBatchId(Long batchId) { this.batchId = batchId; }
+}
+
+5.4 PaymentDetailsDto.java
+
+package com.yourcompany.payroll.controller.dto;
+
+public class PaymentDetailsDto {
+    private String debitAccount;
+    private String payrollType;
+    private String currency;
+
+    public PaymentDetailsDto() {}
+
+    public PaymentDetailsDto(String debitAccount, String payrollType, String currency) {
+        this.debitAccount = debitAccount;
+        this.payrollType = payrollType;
+        this.currency = currency;
+    }
+
+    // Getters and Setters
+    public String getDebitAccount() { return debitAccount; }
+    public void setDebitAccount(String debitAccount) { this.debitAccount = debitAccount; }
+    public String getPayrollType() { return payrollType; }
+    public void setPayrollType(String payrollType) { this.payrollType = payrollType; }
+    public String getCurrency() { return currency; }
+    public void setCurrency(String currency) { this.currency = currency; }
+}
+
+5.5 BankAccountDto.java
+
+package com.yourcompany.payroll.controller.dto;
+
+import java.math.BigDecimal;
+
+public class BankAccountDto {
+    private Long id;
+    private String accountNumber;
+    private String accountName;
+    private BigDecimal balance;
+
+    public BankAccountDto() {}
+
+    public BankAccountDto(Long id, String accountNumber, String accountName, BigDecimal balance) {
+        this.id = id;
+        this.accountNumber = accountNumber;
+        this.accountName = accountName;
+        this.balance = balance;
+    }
+
+    // Getters and Setters
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    public String getAccountNumber() { return accountNumber; }
+    public void setAccountNumber(String accountNumber) { this.accountNumber = accountNumber; }
+    public String getAccountName() { return accountName; }
+    public void setAccountName(String accountName) { this.accountName = accountName; }
+    public BigDecimal getBalance() { return balance; }
+    public void setBalance(BigDecimal balance) { this.balance = balance; }
+}
+
+
+
+6. controller package
+
+6.1 PayrollController.java
+
+package com.yourcompany.payroll.controller;
+
+import com.yourcompany.payroll.controller.dto.CreateBatchRequestDto;
+import com.yourcompany.payroll.controller.dto.BankAccountDto;
+import com.yourcompany.payroll.controller.dto.BatchDto;
+import com.yourcompany.payroll.controller.dto.EmployeeDto;
+import com.yourcompany.payroll.controller.dto.PaymentDetailsDto;
+import com.yourcompany.payroll.model.BankAccount; // Import new entity
+import com.yourcompany.payroll.model.Batch;
+import com.yourcompany.payroll.model.Employee;
+import com.yourcompany.payroll.repository.BankAccountRepository; // Import new repository
+import com.yourcompany.payroll.repository.BatchRepository;
+import com.yourcompany.payroll.repository.EmployeeRepository;
+import jakarta.persistence.EntityNotFoundException;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.math.BigDecimal; // Import BigDecimal
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+@RestController
+@RequestMapping("/api")
+public class PayrollController {
+
+    private final BatchRepository batchRepository;
+    private final EmployeeRepository employeeRepository;
+    private final BankAccountRepository bankAccountRepository; // Inject new repository
+
+    @Autowired
+    public PayrollController(BatchRepository batchRepository,
+                             EmployeeRepository employeeRepository,
+                             BankAccountRepository bankAccountRepository) { // Add to constructor
+        this.batchRepository = batchRepository;
+        this.employeeRepository = employeeRepository;
+        this.bankAccountRepository = bankAccountRepository; // Assign injected repo
+    }
+
+    // --- Batch Endpoints ---
+
+    @GetMapping("/batches")
+    public ResponseEntity<List<BatchDto>> getAllBatches() {
+        List<Batch> batches = batchRepository.findAll();
+        List<BatchDto> batchDtos = batches.stream()
+                .map(this::convertToBatchDto)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(batchDtos);
+    }
+
+    @PostMapping("/batches")
+    @Transactional
+    public ResponseEntity<BatchDto> createBatch(@RequestBody CreateBatchRequestDto createRequest) {
+        String name = createRequest.getName();
+        if (name == null || name.trim().length() < 2) {
+            return ResponseEntity.badRequest().build();
+        }
+        Batch newBatch = new Batch(name.trim());
+        Batch savedBatch = batchRepository.save(newBatch);
+        return ResponseEntity.status(HttpStatus.CREATED).body(convertToBatchDto(savedBatch));
+    }
+
+    @PutMapping("/batches/{id}")
+    @Transactional
+    public ResponseEntity<BatchDto> updateBatchName(@PathVariable Long id, @RequestBody Map<String, String> payload) {
+        String newName = payload.get("name");
+        if (newName == null || newName.trim().length() < 2) {
+            return ResponseEntity.badRequest().build();
+        }
+        Batch batch = batchRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Batch not found with id: " + id));
+
+        batch.setName(newName.trim());
+        Batch updatedBatch = batchRepository.save(batch);
+        return ResponseEntity.ok(convertToBatchDto(updatedBatch));
+    }
+
+    @DeleteMapping("/batches/{id}")
+    @Transactional
+    public ResponseEntity<Void> deleteBatch(@PathVariable Long id) {
+        if (!batchRepository.existsById(id)) {
+             throw new EntityNotFoundException("Batch not found with id: " + id);
+        }
+        employeeRepository.unassignEmployeesByBatchId(id);
+        batchRepository.deleteById(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    // --- Employee Endpoints ---
+
+    @GetMapping("/employees")
+    public ResponseEntity<List<EmployeeDto>> getAllEmployees() {
+        List<Employee> employees = employeeRepository.findAll();
+        List<EmployeeDto> employeeDtos = employees.stream()
+                .map(this::convertToEmployeeDto)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(employeeDtos);
+    }
+
+    @PostMapping("/employees")
+    @Transactional
+    public ResponseEntity<EmployeeDto> addEmployee(@RequestBody EmployeeDto employeeDto) {
+        if (employeeDto.getName() == null || employeeDto.getName().trim().isEmpty() ||
+            employeeDto.getSalaryAmount() == null || employeeDto.getSalaryAmount().compareTo(BigDecimal.ZERO) <= 0 ||
+            employeeDto.getBankDetails() == null || employeeDto.getBankDetails().trim().isEmpty()) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        Employee employee = new Employee();
+        employee.setName(employeeDto.getName().trim());
+        employee.setSalaryAmount(employeeDto.getSalaryAmount());
+        employee.setBankDetails(employeeDto.getBankDetails().trim());
+        employee.setPaymentRef(employeeDto.getPaymentRef());
+        employee.setDepartment(employeeDto.getDepartment()); // Use getDepartment()
+        employee.setNotes(employeeDto.getNotes());
+
+        if (employeeDto.getBatchId() != null) {
+            Batch batch = batchRepository.findById(employeeDto.getBatchId())
+                    .orElseThrow(() -> new EntityNotFoundException("Batch not found for assignment with id: " + employeeDto.getBatchId()));
+            employee.setBatch(batch);
+        }
+
+        Employee savedEmployee = employeeRepository.save(employee);
+        return ResponseEntity.status(HttpStatus.CREATED).body(convertToEmployeeDto(savedEmployee));
+    }
+
+    @DeleteMapping("/employees/{id}")
+    @Transactional
+    public ResponseEntity<Void> deleteEmployee(@PathVariable Long id) {
+         if (!employeeRepository.existsById(id)) {
+             throw new EntityNotFoundException("Employee not found with id: " + id);
+        }
+        employeeRepository.deleteById(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/employees/{employeeId}/assign/{batchId}")
+    @Transactional
+    public ResponseEntity<EmployeeDto> assignEmployeeToBatch(@PathVariable Long employeeId, @PathVariable Long batchId) {
+        Employee employee = employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new EntityNotFoundException("Employee not found with id: " + employeeId));
+        Batch batch = batchRepository.findById(batchId)
+                .orElseThrow(() -> new EntityNotFoundException("Batch not found with id: " + batchId));
+
+        employee.setBatch(batch);
+        Employee updatedEmployee = employeeRepository.save(employee);
+        return ResponseEntity.ok(convertToEmployeeDto(updatedEmployee));
+    }
+
+    @PutMapping("/employees/{employeeId}/unassign")
+    @Transactional
+    public ResponseEntity<EmployeeDto> unassignEmployee(@PathVariable Long employeeId) {
+        Employee employee = employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new EntityNotFoundException("Employee not found with id: " + employeeId));
+
+        employee.setBatch(null);
+        Employee updatedEmployee = employeeRepository.save(employee);
+        return ResponseEntity.ok(convertToEmployeeDto(updatedEmployee));
+    }
+
+    // --- Bulk Upload Endpoint ---
+    @PostMapping("/employees/bulk-upload")
+    @Transactional
+    public ResponseEntity<BatchDto> bulkUploadEmployees(@RequestParam("file") MultipartFile file) {
+        if (file.isEmpty()) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        String batchName = file.getOriginalFilename();
+        if (batchName != null) {
+             batchName = batchName.replaceAll("\\.(xlsx|csv)$", "").replaceAll("[^a-zA-Z0-9\\s-]", "").trim();
+             if (batchName.isEmpty()) batchName = "Uploaded Batch " + LocalDateTime.now();
+        } else {
+             batchName = "Uploaded Batch " + LocalDateTime.now();
+        }
+
+        List<Employee> parsedEmployees = new ArrayList<>();
+        // You MUST implement file parsing logic here using a library like Apache POI
+
+        if (parsedEmployees.isEmpty()){
+             System.out.println("WARNING: File parsing logic not implemented. Created empty batch.");
+        }
+
+        Batch newBatch = new Batch(batchName);
+        Batch savedBatch = batchRepository.save(newBatch);
+
+        for (Employee emp : parsedEmployees) {
+            emp.setBatch(savedBatch);
+        }
+        employeeRepository.saveAll(parsedEmployees);
+
+        Batch finalBatch = batchRepository.findById(savedBatch.getId()).get();
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(convertToBatchDto(finalBatch));
+    }
+
+
+    // --- Payment Initiation Endpoint (MODIFIED for balance check) ---
+
+    @PostMapping("/batches/{id}/initiate-payment")
+    @Transactional
+    public ResponseEntity<?> initiatePayment(@PathVariable Long id, @RequestBody PaymentDetailsDto paymentDetails) { // Return type changed to wildcard
+        // Validate payload
+         if (paymentDetails.getDebitAccount() == null || paymentDetails.getDebitAccount().trim().isEmpty()) {
+            return ResponseEntity.badRequest().body("Debit account is required."); // Return specific message
+        }
+
+        // Fetch entities
+        BankAccount debitAccount = bankAccountRepository.findByAccountNumber(paymentDetails.getDebitAccount())
+             .orElseThrow(() -> new EntityNotFoundException("Selected Debit Account not found: " + paymentDetails.getDebitAccount()));
+
+        Batch batch = batchRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Batch not found with id: " + id));
+
+        // Fetch employees for the batch
+        List<Employee> employeesInBatch = employeeRepository.findByBatchId(id);
+
+        if (employeesInBatch.isEmpty()) {
+            System.err.println("Attempted to initiate payment for empty batch: " + id);
+            // Return specific error message
+             return ResponseEntity.status(HttpStatus.CONFLICT).body("Cannot initiate payment: Batch has no assigned employees.");
+        }
+
+        // --- Calculate Total Payment Amount ---
+        BigDecimal totalPaymentAmount = employeesInBatch.stream()
+                .map(Employee::getSalaryAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        // --- Check Available Balance ---
+        if (debitAccount.getBalance().compareTo(totalPaymentAmount) < 0) {
+            System.err.println("Insufficient balance for batch " + id + ". Required: " + totalPaymentAmount + ", Available: " + debitAccount.getBalance());
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                   .body("Insufficient balance in account " + debitAccount.getAccountNumber() +
+                         ". Required: " + totalPaymentAmount + ", Available: " + debitAccount.getBalance() +
+                         ". Please select another account.");
+        }
+
+        // Update batch status to Pending, increment count, set date
+        batch.setPaymentCount(batch.getPaymentCount() + 1);
+        batch.setLastPaymentDate(LocalDateTime.now());
+        batch.setPaymentStatus("Pending");
+
+        System.out.println("Payment initiated (Status: Pending) for batch " + id + " from account " + paymentDetails.getDebitAccount() +
+                           " type: " + paymentDetails.getPayrollType() + " currency: " + paymentDetails.getCurrency() +
+                           " Amount: " + totalPaymentAmount);
+
+        Batch updatedBatch = batchRepository.save(batch);
+        // Return BatchDto on success
+        return ResponseEntity.ok(convertToBatchDto(updatedBatch));
+    }
+
+    // --- Bank Accounts Endpoint ---
+
+    @GetMapping("/bank-accounts")
+    public ResponseEntity<List<BankAccountDto>> getBankAccounts() {
+        List<BankAccount> accounts = bankAccountRepository.findAll();
+        List<BankAccountDto> accountDtos = accounts.stream()
+                .map(this::convertToBankAccountDto)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(accountDtos);
+    }
+
+
+    // --- Helper Methods for DTO Conversion ---
+
+    private BatchDto convertToBatchDto(Batch batch) {
+        long employeeCount = employeeRepository.countByBatchId(batch.getId());
+        return new BatchDto(
+                batch.getId(),
+                batch.getName(),
+                batch.getPaymentCount(),
+                batch.getLastPaymentDate(),
+                batch.getPaymentStatus(),
+                employeeCount
+        );
+    }
+
+    private EmployeeDto convertToEmployeeDto(Employee employee) {
+        Long batchId = (employee.getBatch() != null) ? employee.getBatch().getId() : null;
+        return new EmployeeDto(
+                employee.getId(),
+                employee.getName(),
+                employee.getSalaryAmount(),
+                employee.getBankDetails(),
+                employee.getPaymentRef(),
+                employee.getDepartment(), // Use getDepartment()
+                employee.getNotes(),
+                batchId
+        );
+    }
+
+    private BankAccountDto convertToBankAccountDto(BankAccount account) {
+        return new BankAccountDto(
+            account.getId(),
+            account.getAccountNumber(),
+            account.getAccountName(),
+            account.getBalance()
+        );
+    }
+
+     // --- Exception Handling ---
+     @ExceptionHandler(EntityNotFoundException.class)
+     public ResponseEntity<String> handleEntityNotFound(EntityNotFoundException ex) {
+         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
+     }
+
+     @ExceptionHandler(Exception.class)
+     public ResponseEntity<String> handleGenericException(Exception ex) {
+         ex.printStackTrace();
+         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An unexpected error occurred: " + ex.getMessage());
+     }
+}
