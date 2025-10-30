@@ -1,0 +1,170 @@
+/* ROOT CSS VARIABLES FOR A MODERN THEME */
+:root {
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: 'Fira Code', 'Courier New', monospace;
+
+  --color-primary: #4f46e5;
+  --color-primary-hover: #4338ca;
+  --color-primary-light: #eef2ff;
+  --color-primary-text: #3730a3;
+  
+  --color-secondary: #0ea5e9;
+  
+  --color-success: #16a34a;
+  --color-success-hover: #15803d;
+  --color-success-light: #f0fdf4;
+  
+  --color-warning: #f59e0b;
+  --color-warning-light: #fffbeb;
+  --color-warning-text: #b45309;
+
+  --color-danger: #dc2626;
+  --color-danger-hover: #b91c1c;
+  
+  --color-text-primary: #1f2937;
+  --color-text-secondary: #4b5563;
+  --color-text-light: #6b7280;
+  --color-text-inverted: #ffffff;
+  
+  --color-bg-page: #f9fafb;
+  --color-bg-card: #ffffff;
+  --color-bg-muted: #f3f4f6;
+  --color-bg-muted-hover: #e5e7eb;
+  
+  --color-border-light: #e5e7eb;
+  --color-border-dark: #d1d5db;
+  --color-border-input: #c7d2fe;
+  --color-border-input-focus: var(--color-primary);
+
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  --shadow-inner: inset 0 2px 4px 0 rgb(0 0 0 / 0.05);
+
+  --radius-sm: 0.25rem;
+  --radius: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-full: 9999px;
+  
+  --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* GLOBAL STYLES */
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-sans);
+  background-color: var(--color-bg-page);
+  color: var(--color-text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Generic styles for form inputs and buttons to ensure consistency */
+input[type="text"],
+input[type="number"],
+input[type="email"],
+textarea,
+select {
+  width: 100%;
+  padding: 0.65rem 0.75rem;
+  font-size: 0.9rem;
+  border: 1px solid var(--color-border-input);
+  background-color: var(--color-bg-card);
+  border-radius: var(--radius);
+  transition: var(--transition);
+  color: var(--color-text-primary);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--color-text-light);
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: var(--color-border-input-focus);
+  box-shadow: 0 0 0 2px var(--color-primary-light);
+}
+
+input:disabled,
+textarea:disabled,
+select:disabled {
+  background-color: var(--color-bg-muted);
+  cursor: not-allowed;
+  color: var(--color-text-secondary);
+}
+
+/* Utility button styles */
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.65rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: var(--transition);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.button-primary {
+  background-color: var(--color-primary);
+  color: var(--color-text-inverted);
+  box-shadow: var(--shadow);
+}
+.button-primary:hover {
+  background-color: var(--color-primary-hover);
+  box-shadow: var(--shadow-lg);
+}
+
+.button-success {
+  background-color: var(--color-success);
+  color: var(--color-text-inverted);
+  box-shadow: var(--shadow);
+}
+.button-success:hover {
+  background-color: var(--color-success-hover);
+  box-shadow: var(--shadow-lg);
+}
+
+.button-danger {
+  background-color: var(--color-danger);
+  color: var(--color-text-inverted);
+  box-shadow: var(--shadow);
+}
+.button-danger:hover {
+  background-color: var(--color-danger-hover);
+  box-shadow: var(--shadow-lg);
+}
+
+.button-secondary {
+  background-color: var(--color-bg-muted);
+  color: var(--color-text-secondary);
+}
+.button-secondary:hover {
+  background-color: var(--color-bg-muted-hover);
+}
+
+.button:disabled {
+  background-color: #9ca3af; /* gray-400 */
+  color: var(--color-bg-muted);
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.button svg {
+  width: 1.15rem;
+  height: 1.15rem;
+  margin-right: 0.5rem;
+}

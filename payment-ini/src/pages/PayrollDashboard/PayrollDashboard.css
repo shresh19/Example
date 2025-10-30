@@ -1,0 +1,71 @@
+.dashboard {
+    padding: 1.5rem;
+    max-width: 1600px;
+    margin: 0 auto;
+  }
+  
+  .formGrid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+    margin-bottom: 2.5rem;
+  }
+  
+  .mainContentGrid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+  
+  /* On larger screens */
+  @media (min-width: 768px) {
+    .dashboard {
+      padding: 2rem;
+    }
+    .formGrid {
+      /* Stack on medium screens */
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+  
+  @media (min-width: 1024px) {
+    .formGrid {
+      /* On large screens, use a 3-column layout */
+      grid-template-columns: 1fr 1fr 1fr;
+      
+      /* Make AddEmployeeForm span 2 columns */
+      & > :nth-child(3) {
+        grid-column: span 2 / span 2;
+      }
+      
+      /* Make BulkUploadForm span 1 column */
+      & > :nth-child(2) {
+        grid-column: span 1 / span 1;
+      }
+    }
+  }
+  
+  /* On very large screens, let all 3 forms sit side-by-side */
+  @media (min-width: 1400px) {
+    .formGrid {
+      grid-template-columns: 1fr 1fr 2fr;
+      & > :nth-child(2),
+      & > :nth-child(3) {
+        grid-column: auto;
+      }
+    }
+  }
+  
+  
+  @media (min-width: 1024px) {
+    .mainContentGrid {
+      /* 1fr for employee list, 3fr for batch list */
+      grid-template-columns: 1fr 3fr;
+    }
+    .employeeListColumn {
+      order: 1;
+    }
+    .batchListColumn {
+      order: 2;
+    }
+  }

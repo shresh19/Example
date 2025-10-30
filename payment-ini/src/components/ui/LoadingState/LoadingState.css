@@ -1,0 +1,34 @@
+.loadingBox {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    background-color: var(--color-bg-muted);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-inner);
+    margin-top: 1rem;
+  }
+  
+  .loadingBox .loader {
+    width: 1.5rem;
+    height: 1.5rem;
+    animation: spin 1s linear infinite;
+    color: var(--color-primary);
+    margin-right: 0.75rem;
+  }
+  
+  .loadingText {
+    font-size: 1.125rem;
+    color: var(--color-primary-text);
+    font-weight: 500;
+    margin: 0;
+  }
+  
+  @keyframes spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
