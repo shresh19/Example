@@ -1,0 +1,900 @@
+1. src/main/java/com/yourcompany/payroll/model/Batch.java
+
+package com.yourcompany.payroll.model;
+
+import jakarta.persistence.*;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
+@Entity
+@Table(name = "payroll_batches")
+public class Batch {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false, length = 100)
+    private String name;
+
+    @Column(name = "payment_count")
+    private int paymentCount = 0;
+
+    @Column(name = "last_payment_date")
+    private LocalDateTime lastPaymentDate;
+
+    @Column(name = "payment_status", length = 20)
+    private String paymentStatus = "Pending";
+
+    @Column(name = "debit_account", length = 100)
+    private String debitAccount;
+
+    @Column(name = "currency", length = 10)
+    private String currency;
+
+    // --- NEW FIELD ---
+    @Column(name = "user_id", length = 50)
+    private String userId;
+    // --- END NEW FIELD ---
+
+    @OneToMany(mappedBy = "batch", cascade = {CascadeType.PERSIST, CascadeType.MERGE}, fetch = FetchType.LAZY)
+    private List<Employee> employees = new ArrayList<>();
+
+    // --- Constructors ---
+    public Batch() {
+    }
+
+    public Batch(String name) {
+        this.name = name;
+    }
+
+    // --- Getters and Setters ---
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+    public int getPaymentCount() { return paymentCount; }
+    public void setPaymentCount(int paymentCount) { this.paymentCount = paymentCount; }
+    public LocalDateTime getLastPaymentDate() { return lastPaymentDate; }
+    public void setLastPaymentDate(LocalDateTime lastPaymentDate) { this.lastPaymentDate = lastPaymentDate; }
+    public String getPaymentStatus() { return paymentStatus; }
+    public void setPaymentStatus(String paymentStatus) { this.paymentStatus = paymentStatus; }
+    public String getDebitAccount() { return debitAccount; }
+    public void setDebitAccount(String debitAccount) { this.debitAccount = debitAccount; }
+    public String getCurrency() { return currency; }
+    public void setCurrency(String currency) { this.currency = currency; }
+    public List<Employee> getEmployees() { return employees; }
+    public void setEmployees(List<Employee> employees) { this.employees = employees; }
+
+    // --- NEW GETTER AND SETTER ---
+    public String getUserId() { return userId; }
+    public void setUserId(String userId) { this.userId = userId; }
+    // --- END NEW GETTER AND SETTER ---
+
+
+    // --- Convenience Methods ---
+    public void addEmployee(Employee employee) {
+        this.employees.add(employee);
+        employee.setBatch(this);
+    }
+    public void removeEmployee(Employee employee) {
+        this.employees.remove(employee);
+        employee.setBatch(null);
+    }
+
+    // --- toString, equals, hashCode ---
+    @Override
+    public String toString() {
+        return "Batch{" + "id=" + id + ", name='" + name + '\'' + ", paymentCount=" + paymentCount + ", lastPaymentDate=" + lastPaymentDate + ", paymentStatus='" + paymentStatus + '\'' + ", debitAccount='" + debitAccount + '\'' + ", currency='" + currency + '\'' + ", userId='" + userId + '\'' + '}';
+    }
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Batch batch = (Batch) o;
+        return id != null && id.equals(batch.id);
+    }
+    @Override
+    public int hashCode() { return getClass().hashCode(); }
+}
+
+
+
+
+2. src/main/java/com/yourcompany/payroll/controller/dto/BatchDto.java
+
+
+package com.yourcompany.payroll.controller.dto;
+
+import java.time.LocalDateTime;
+
+public class BatchDto {
+    private Long id;
+    private String name;
+    private int paymentCount;
+    private LocalDateTime lastPaymentDate;
+    private String paymentStatus;
+    private long employeeCount;
+    private String debitAccount;
+    private String currency;
+    // --- NEW FIELD ---
+    private String userId;
+    // --- END NEW FIELD ---
+
+    public BatchDto() {}
+
+    // --- MODIFIED CONSTRUCTOR ---
+    public BatchDto(Long id, String name, int paymentCount, LocalDateTime lastPaymentDate, String paymentStatus, long employeeCount, String debitAccount, String currency, String userId) {
+        this.id = id;
+        this.name = name;
+        this.paymentCount = paymentCount;
+        this.lastPaymentDate = lastPaymentDate;
+        this.paymentStatus = paymentStatus;
+        this.employeeCount = employeeCount;
+        this.debitAccount = debitAccount;
+        this.currency = currency;
+        this.userId = userId; // Set new field
+    }
+
+    // --- Getters and Setters ---
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+    public int getPaymentCount() { return paymentCount; }
+    public void setPaymentCount(int paymentCount) { this.paymentCount = paymentCount; }
+    public LocalDateTime getLastPaymentDate() { return lastPaymentDate; }
+    public void setLastPaymentDate(LocalDateTime lastPaymentDate) { this.lastPaymentDate = lastPaymentDate; }
+    public String getPaymentStatus() { return paymentStatus; }
+    public void setPaymentStatus(String paymentStatus) { this.paymentStatus = paymentStatus; }
+    public long getEmployeeCount() { return employeeCount; }
+    public void setEmployeeCount(long employeeCount) { this.employeeCount = employeeCount; }
+    public String getDebitAccount() { return debitAccount; }
+    public void setDebitAccount(String debitAccount) { this.debitAccount = debitAccount; }
+    public String getCurrency() { return currency; }
+    public void setCurrency(String currency) { this.currency = currency; }
+
+    // --- NEW GETTER AND SETTER ---
+    public String getUserId() { return userId; }
+    public void setUserId(String userId) { this.userId = userId; }
+    // --- END NEW GETTER AND SETTER ---
+}
+
+
+
+3. src/main/java/com/yourcompany/payroll/controller/dto/PaymentDetailsDto.java
+
+package com.yourcompany.payroll.controller.dto;
+
+public class PaymentDetailsDto {
+    private String debitAccount;
+    private String payrollType;
+    private String currency;
+    // --- NEW FIELD ---
+    private String userId;
+    // --- END NEW FIELD ---
+
+    public PaymentDetailsDto() {}
+
+    // --- MODIFIED CONSTRUCTOR ---
+    public PaymentDetailsDto(String debitAccount, String payrollType, String currency, String userId) {
+        this.debitAccount = debitAccount;
+        this.payrollType = payrollType;
+        this.currency = currency;
+        this.userId = userId;
+    }
+
+    // --- Getters and Setters ---
+    public String getDebitAccount() { return debitAccount; }
+    public void setDebitAccount(String debitAccount) { this.debitAccount = debitAccount; }
+    public String getPayrollType() { return payrollType; }
+    public void setPayrollType(String payrollType) { this.payrollType = payrollType; }
+    public String getCurrency() { return currency; }
+    public void setCurrency(String currency) { this.currency = currency; }
+
+    // --- NEW GETTER AND SETTER ---
+    public String getUserId() { return userId; }
+    public void setUserId(String userId) { this.userId = userId; }
+    // --- END NEW GETTER AND SETTER ---
+}
+
+
+
+4. src/main/java/com/yourcompany/payroll/controller/PayrollController.java
+
+package com.yourcompany.payroll.controller;
+
+import com.yourcompany.payroll.controller.dto.CreateBatchRequestDto;
+import com.yourcompany.payroll.controller.dto.BankAccountDto;
+import com.yourcompany.payroll.controller.dto.BatchDto;
+import com.yourcompany.payroll.controller.dto.EmployeeDto;
+import com.yourcompany.payroll.controller.dto.PaymentDetailsDto;
+import com.yourcompany.payroll.model.BankAccount;
+import com.yourcompany.payroll.model.Batch;
+import com.yourcompany.payroll.model.Employee;
+import com.yourcompany.payroll.repository.BankAccountRepository;
+import com.yourcompany.payroll.repository.BatchRepository;
+import com.yourcompany.payroll.repository.EmployeeRepository;
+import jakarta.persistence.EntityNotFoundException;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+@RestController
+@RequestMapping("/api")
+public class PayrollController {
+
+    private final BatchRepository batchRepository;
+    private final EmployeeRepository employeeRepository;
+    private final BankAccountRepository bankAccountRepository;
+
+    @Autowired
+    public PayrollController(BatchRepository batchRepository,
+                             EmployeeRepository employeeRepository,
+                             BankAccountRepository bankAccountRepository) {
+        this.batchRepository = batchRepository;
+        this.employeeRepository = employeeRepository;
+        this.bankAccountRepository = bankAccountRepository;
+    }
+
+    // --- Batch Endpoints ---
+
+    @GetMapping("/batches")
+    public ResponseEntity<List<BatchDto>> getAllBatches() {
+        List<Batch> batches = batchRepository.findAll();
+        List<BatchDto> batchDtos = batches.stream()
+                .map(this::convertToBatchDto)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(batchDtos);
+    }
+
+    @PostMapping("/batches")
+    @Transactional
+    public ResponseEntity<BatchDto> createBatch(@RequestBody CreateBatchRequestDto createRequest) {
+        String name = createRequest.getName();
+        if (name == null || name.trim().length() < 2) {
+            return ResponseEntity.badRequest().build();
+        }
+        Batch newBatch = new Batch(name.trim());
+        Batch savedBatch = batchRepository.save(newBatch);
+        return ResponseEntity.status(HttpStatus.CREATED).body(convertToBatchDto(savedBatch));
+    }
+
+    @PutMapping("/batches/{id}")
+    @Transactional
+    public ResponseEntity<BatchDto> updateBatchName(@PathVariable Long id, @RequestBody Map<String, String> payload) {
+        String newName = payload.get("name");
+        if (newName == null || newName.trim().length() < 2) {
+            return ResponseEntity.badRequest().build();
+        }
+        Batch batch = batchRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Batch not found with id: " + id));
+
+        batch.setName(newName.trim());
+        Batch updatedBatch = batchRepository.save(batch);
+        return ResponseEntity.ok(convertToBatchDto(updatedBatch));
+    }
+
+    @DeleteMapping("/batches/{id}")
+    @Transactional
+    public ResponseEntity<Void> deleteBatch(@PathVariable Long id) {
+        if (!batchRepository.existsById(id)) {
+             throw new EntityNotFoundException("Batch not found with id: " + id);
+        }
+        employeeRepository.unassignEmployeesByBatchId(id);
+        batchRepository.deleteById(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    // --- Employee Endpoints ---
+
+    @GetMapping("/employees")
+    public ResponseEntity<List<EmployeeDto>> getAllEmployees() {
+        List<Employee> employees = employeeRepository.findAll();
+        List<EmployeeDto> employeeDtos = employees.stream()
+                .map(this::convertToEmployeeDto)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(employeeDtos);
+    }
+
+    @PostMapping("/employees")
+    @Transactional
+    public ResponseEntity<EmployeeDto> addEmployee(@RequestBody EmployeeDto employeeDto) {
+        if (employeeDto.getName() == null || employeeDto.getName().trim().isEmpty() ||
+            employeeDto.getSalaryAmount() == null || employeeDto.getSalaryAmount().compareTo(BigDecimal.ZERO) <= 0 ||
+            employeeDto.getBankDetails() == null || employeeDto.getBankDetails().trim().isEmpty()) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        Employee employee = new Employee();
+        employee.setName(employeeDto.getName().trim());
+        employee.setSalaryAmount(employeeDto.getSalaryAmount());
+        employee.setBankDetails(employeeDto.getBankDetails().trim());
+        employee.setPaymentRef(employeeDto.getPaymentRef());
+        employee.setDepartment(employeeDto.getDepartment());
+        employee.setNotes(employeeDto.getNotes());
+
+        if (employeeDto.getBatchId() != null) {
+            Batch batch = batchRepository.findById(employeeDto.getBatchId())
+                    .orElseThrow(() -> new EntityNotFoundException("Batch not found for assignment with id: " + employeeDto.getBatchId()));
+            employee.setBatch(batch);
+        }
+
+        Employee savedEmployee = employeeRepository.save(employee);
+        return ResponseEntity.status(HttpStatus.CREATED).body(convertToEmployeeDto(savedEmployee));
+    }
+
+    @DeleteMapping("/employees/{id}")
+    @Transactional
+    public ResponseEntity<Void> deleteEmployee(@PathVariable Long id) {
+         if (!employeeRepository.existsById(id)) {
+             throw new EntityNotFoundException("Employee not found with id: " + id);
+        }
+        employeeRepository.deleteById(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/employees/{employeeId}/assign/{batchId}")
+    @Transactional
+    public ResponseEntity<EmployeeDto> assignEmployeeToBatch(@PathVariable Long employeeId, @PathVariable Long batchId) {
+        Employee employee = employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new EntityNotFoundException("Employee not found with id: " + employeeId));
+        Batch batch = batchRepository.findById(batchId)
+                .orElseThrow(() -> new EntityNotFoundException("Batch not found with id: " + batchId));
+
+        employee.setBatch(batch);
+        Employee updatedEmployee = employeeRepository.save(employee);
+        return ResponseEntity.ok(convertToEmployeeDto(updatedEmployee));
+    }
+
+    @PutMapping("/employees/{employeeId}/unassign")
+    @Transactional
+    public ResponseEntity<EmployeeDto> unassignEmployee(@PathVariable Long employeeId) {
+        Employee employee = employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new EntityNotFoundException("Employee not found with id: " + employeeId));
+
+        employee.setBatch(null);
+        Employee updatedEmployee = employeeRepository.save(employee);
+        return ResponseEntity.ok(convertToEmployeeDto(updatedEmployee));
+    }
+
+    // --- Bulk Upload Endpoint ---
+    @PostMapping("/employees/bulk-upload")
+    @Transactional
+    public ResponseEntity<BatchDto> bulkUploadEmployees(@RequestParam("file") MultipartFile file) {
+        if (file.isEmpty()) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        String batchName = file.getOriginalFilename();
+        if (batchName != null) {
+             batchName = batchName.replaceAll("\\.(xlsx|csv)$", "").replaceAll("[^a-zA-Z0-9\\s-]", "").trim();
+             if (batchName.isEmpty()) batchName = "Uploaded Batch " + LocalDateTime.now();
+        } else {
+             batchName = "Uploaded Batch " + LocalDateTime.now();
+        }
+
+        List<Employee> parsedEmployees = new ArrayList<>();
+        // You MUST implement file parsing logic here using a library like Apache POI
+
+        if (parsedEmployees.isEmpty()){
+             System.out.println("WARNING: File parsing logic not implemented. Created empty batch.");
+        }
+
+        Batch newBatch = new Batch(batchName);
+        Batch savedBatch = batchRepository.save(newBatch);
+
+        for (Employee emp : parsedEmployees) {
+            emp.setBatch(savedBatch);
+        }
+        employeeRepository.saveAll(parsedEmployees);
+
+        Batch finalBatch = batchRepository.findById(savedBatch.getId()).get();
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(convertToBatchDto(finalBatch));
+    }
+
+
+    // --- Payment Initiation Endpoint ---
+
+    @PostMapping("/batches/{id}/initiate-payment")
+    @Transactional
+    public ResponseEntity<?> initiatePayment(@PathVariable Long id, @RequestBody PaymentDetailsDto paymentDetails) {
+         if (paymentDetails.getDebitAccount() == null || paymentDetails.getDebitAccount().trim().isEmpty()) {
+            return ResponseEntity.badRequest().body("Debit account is required.");
+        }
+        // --- NEW VALIDATION ---
+         if (paymentDetails.getUserId() == null || paymentDetails.getUserId().trim().isEmpty()) {
+            return ResponseEntity.badRequest().body("User ID is required.");
+         }
+        // --- END NEW VALIDATION ---
+        
+        BankAccount debitAccount = bankAccountRepository.findByAccountNumber(paymentDetails.getDebitAccount())
+             .orElseThrow(() -> new EntityNotFoundException("Selected Debit Account not found: " + paymentDetails.getDebitAccount()));
+
+        Batch batch = batchRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Batch not found with id: " + id));
+
+        List<Employee> employeesInBatch = employeeRepository.findByBatchId(id);
+
+        if (employeesInBatch.isEmpty()) {
+            System.err.println("Attempted to initiate payment for empty batch: " + id);
+             return ResponseEntity.status(HttpStatus.CONFLICT).body("Cannot initiate payment: Batch has no assigned employees.");
+        }
+
+        BigDecimal totalPaymentAmount = employeesInBatch.stream()
+                .map(Employee::getSalaryAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        if (debitAccount.getBalance().compareTo(totalPaymentAmount) < 0) {
+            System.err.println("Insufficient balance for batch " + id + ". Required: " + totalPaymentAmount + ", Available: " + debitAccount.getBalance());
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                   .body("Insufficient balance in account " + debitAccount.getAccountNumber() +
+                         ". Required: " + totalPaymentAmount + ", Available: " + debitAccount.getBalance() +
+                         ". Please select another account.");
+        }
+
+        batch.setPaymentCount(batch.getPaymentCount() + 1);
+        batch.setLastPaymentDate(LocalDateTime.now());
+        batch.setPaymentStatus("Pending");
+        batch.setDebitAccount(paymentDetails.getDebitAccount());
+        batch.setCurrency(paymentDetails.getCurrency());
+        batch.setUserId(paymentDetails.getUserId().trim()); // Set User ID
+
+        System.out.println("Payment initiated (Status: Pending) by User: " + paymentDetails.getUserId() + // Log User ID
+                           " for batch " + id + " from account " + paymentDetails.getDebitAccount() +
+                           " type: " + paymentDetails.getPayrollType() + " currency: " + paymentDetails.getCurrency() +
+                           " Amount: " + totalPaymentAmount);
+
+        Batch updatedBatch = batchRepository.save(batch);
+        return ResponseEntity.ok(convertToBatchDto(updatedBatch));
+    }
+
+    // --- Bank Accounts Endpoint ---
+
+    @GetMapping("/bank-accounts")
+    public ResponseEntity<List<BankAccountDto>> getBankAccounts() {
+        List<BankAccount> accounts = bankAccountRepository.findAll();
+        List<BankAccountDto> accountDtos = accounts.stream()
+                .map(this::convertToBankAccountDto)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(accountDtos);
+    }
+
+
+    // --- Helper Methods for DTO Conversion ---
+
+    private BatchDto convertToBatchDto(Batch batch) {
+        long employeeCount = employeeRepository.countByBatchId(batch.getId());
+        return new BatchDto(
+                batch.getId(),
+                batch.getName(),
+                batch.getPaymentCount(),
+                batch.getLastPaymentDate(),
+                batch.getPaymentStatus(),
+                employeeCount,
+                batch.getDebitAccount(),
+                batch.getCurrency(),
+                batch.getUserId() // Pass new field
+        );
+    }
+
+    private EmployeeDto convertToEmployeeDto(Employee employee) {
+        Long batchId = (employee.getBatch() != null) ? employee.getBatch().getId() : null;
+        return new EmployeeDto(
+                employee.getId(),
+                employee.getName(),
+                employee.getSalaryAmount(),
+                employee.getBankDetails(),
+                employee.getPaymentRef(),
+                employee.getDepartment(),
+                employee.getNotes(),
+                batchId
+        );
+    }
+
+    private BankAccountDto convertToBankAccountDto(BankAccount account) {
+        return new BankAccountDto(
+            account.getId(),
+            account.getAccountNumber(),
+            account.getAccountName(),
+            account.getBalance()
+        );
+    }
+
+     // --- Exception Handling ---
+     @ExceptionHandler(EntityNotFoundException.class)
+     public ResponseEntity<String> handleEntityNotFound(EntityNotFoundException ex) {
+         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
+     }
+
+     @ExceptionHandler(Exception.class)
+     public ResponseEntity<String> handleGenericException(Exception ex) {
+         ex.printStackTrace();
+         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An unexpected error occurred: " + ex.getMessage());
+     }
+}
+
+
+
+----------------------------------------------------------------------------------Frontend Code Changes-------------------------------------------------------------------------------------------------------------
+
+
+5. src/components/payment/InitiatePaymentModal/InitiatePaymentModal.js
+
+import React, { useState, useEffect } from 'react';
+import { DollarSign, X, Loader, Send, Eye, User } from 'lucide-react'; // Import User icon
+import PaymentPreview from '../PaymentPreview/PaymentPreview';
+import './InitiatePaymentModal.css';
+
+const InitiatePaymentModal = ({ isOpen, batch, employees, bankAccounts, onConfirm, onDraft, onClose, isProcessing }) => {
+    const [debitAccount, setDebitAccount] = useState('');
+    const [selectedBalance, setSelectedBalance] = useState(null);
+    const [payrollType, setPayrollType] = useState('');
+    const [currency, setCurrency] = useState('INR');
+    // --- NEW STATE ---
+    const [userId, setUserId] = useState(''); 
+    // --- END NEW STATE ---
+    const [isPreviewVisible, setIsPreviewVisible] = useState(false);
+    
+    useEffect(() => {
+        if (isOpen) {
+            setDebitAccount('');
+            setSelectedBalance(null);
+            setPayrollType('');
+            setCurrency('INR');
+            setUserId(''); // Reset User ID
+            setIsPreviewVisible(false);
+        }
+    }, [isOpen, bankAccounts]); // No dependency change needed here
+
+    if (!isOpen || !batch) return null;
+    
+    const isBatchEmpty = employees.length === 0;
+    // --- MODIFIED VALIDATION ---
+    const isFormValid = debitAccount.trim() !== '' && payrollType.trim() !== '' && userId.trim() !== '' && !isBatchEmpty;
+    // --- END MODIFICATION ---
+
+    const paymentDetails = {
+        debitAccount: debitAccount.trim(),
+        payrollType: payrollType.trim(),
+        currency,
+        userId: userId.trim(), // Add userId to payload
+    };
+
+    const handleSubmit = () => {
+        if (isFormValid) {
+            onConfirm(batch, paymentDetails);
+        }
+    };
+    
+    const handleDraft = () => {
+        onDraft(batch, paymentDetails);
+    };
+
+    const handleAccountChange = (e) => {
+        const selectedAccountNumber = e.target.value;
+        setDebitAccount(selectedAccountNumber);
+
+        if (selectedAccountNumber) {
+            const account = bankAccounts.find(acc => acc.accountNumber === selectedAccountNumber);
+            setSelectedBalance(account ? account.balance : null);
+        } else {
+            setSelectedBalance(null);
+        }
+    };
+
+    return (
+        <div className="paymentModalOverlay">
+            <div className="paymentModalContent">
+                <div className="modalHeader">
+                    <h3 className="modalTitle">
+                        <DollarSign />
+                        Initiate Payment: {batch.name}
+                    </h3>
+                    <button onClick={onClose} className="closeButton" disabled={isProcessing}>
+                        <X />
+                    </button>
+                </div>
+                
+                {isBatchEmpty && (
+                     <div className="batchEmptyError">
+                         <p><b>Cannot submit payment:</b> The batch has no assigned employees.</p>
+                     </div>
+                )}
+
+                <div className="modalBodyGrid">
+                    <div className="formColumn">
+                        <h4 className="columnTitle">Payment Details</h4>
+                        
+                        <div className="formGroup">
+                            <label>Batch ID/No. / Name</label>
+                            <input type="text" value={batch.name} disabled />
+                        </div>
+
+                        <div className="formGroup">
+                            <label htmlFor="debitAccount">Debit Account*</label>
+                            <select
+                                id="debitAccount"
+                                value={debitAccount}
+                                onChange={handleAccountChange}
+                                required
+                            >
+                                <option value="">-- Select an account --</option>
+                                {bankAccounts && bankAccounts.map(account => (
+                                    <option key={account.id} value={account.accountNumber}>
+                                        {account.accountName ? `${account.accountName} (${account.accountNumber})` : account.accountNumber}
+                                    </option>
+                                ))}
+                            </select>
+                            {selectedBalance !== null && (
+                                <p className="availableBalance">
+                                    Available Balance: INR {selectedBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                </p>
+                            )}
+                        </div>
+
+                        {/* --- NEW User ID Field --- */}
+                        <div className="formGroup">
+                            <label htmlFor="userId">Your User ID*</label>
+                            <input
+                                type="text"
+                                id="userId"
+                                value={userId}
+                                onChange={(e) => setUserId(e.target.value)}
+                                placeholder="Enter your User ID"
+                                required
+                            />
+                        </div>
+                        {/* --- END NEW Field --- */}
+
+                        <div className="formGroup">
+                            <label htmlFor="payrollType">Payroll Type*</label>
+                            <input
+                                type="text"
+                                id="payrollType"
+                                value={payrollType}
+                                onChange={(e) => setPayrollType(e.target.value)}
+                                placeholder="e.g., Monthly Salary, Bonus"
+                                required
+                            />
+                        </div>
+                        
+                         <div className="formGroup">
+                            <label htmlFor="currency">Currency</label>
+                            <select 
+                                id="currency" 
+                                value={currency} 
+                                onChange={(e) => setCurrency(e.target.value)} 
+                            >
+                                <option value="INR">INR</option>
+                                <option value="USD">USD</option>
+                            </select>
+                        </div>
+                        
+                        <div className="formGroup">
+                            <label>Date (Initiation)</label>
+                            <input type="text" value={new Date().toLocaleDateString('en-US')} disabled />
+                        </div>
+                    </div>
+                    
+                    <div className="previewColumn">
+                         {isPreviewVisible ? (
+                            <PaymentPreview batch={batch} employees={employees} paymentDetails={paymentDetails} />
+                        ) : (
+                            <div className="previewPlaceholder">
+                                <p>Click 'Show Preview' to generate the payment summary.</p>
+                            </div>
+                        )}
+                        <button
+                            type="button"
+                            onClick={() => setIsPreviewVisible(prev => !prev)}
+                            className="button previewButton"
+                        >
+                            <Eye />
+                            {isPreviewVisible ? 'Hide Preview' : 'Show Preview'}
+                        </button>
+                    </div>
+                </div>
+
+                <div className="modalFooter">
+                    <button
+                        onClick={handleDraft}
+                        disabled={isProcessing}
+                        className="button button-secondary"
+                    >
+                        Draft
+                    </button>
+                    <button
+                        onClick={onClose}
+                        disabled={isProcessing}
+                        className="button button-secondary"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        onClick={handleSubmit}
+                        disabled={!isFormValid || isProcessing}
+                        className="button button-success"
+                    >
+                        {isProcessing ? (
+                            <>
+                                <Loader className="loader" />
+                                Processing...
+                            </>
+                        ) : (
+                            <>
+                                <Send />
+                                Submit Payment
+                            </>
+                        )}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export default InitiatePaymentModal;
+
+
+
+6. src/components/views/BatchList/BatchList.js
+
+import React, { useMemo } from 'react';
+import { Package, Trash2, Clock, Send, Pencil, X, Landmark, CircleDollarSign, User } from 'lucide-react';
+import { formatDate } from '../../../utils/formatDate';
+import './BatchList.css';
+
+const BatchList = ({ batches, employees, deleteBatch, assignEmployeeToBatch, initiatePayment, onEditBatch, unassignEmployee }) => {
+    const unassignedEmployees = useMemo(() => employees.filter(emp => !emp.batchId).sort((a, b) => a.name.localeCompare(b.name)), [employees]);
+
+    return (
+        <div className="batchListContainer">
+            <h2 className="listTitle">
+                <Package />
+                Active Batches
+            </h2>
+            <div className="batchGrid">
+                {batches.length === 0 ? (
+                    <div className="batchEmptyState">
+                        <Package />
+                        <p><b>No batches created yet.</b></p>
+                        <p>Use the form above to get started.</p>
+                    </div>
+                ) : (
+                    batches.map(batch => {
+                        const batchEmployees = employees.filter(emp => emp.batchId === batch.id);
+                        const isPayDisabled = batchEmployees.length === 0;
+                        const totalSalary = batchEmployees.reduce((sum, emp) => sum + (typeof emp.salaryAmount === 'number' ? emp.salaryAmount : 0), 0);
+
+                        return (
+                            <div key={batch.id} className="batchCard">
+                                <div className="cardHeader">
+                                    <h3 className="batchName">{batch.name}</h3>
+                                    <div className="cardHeaderButtons">
+                                        <button
+                                            onClick={() => onEditBatch(batch)}
+                                            className="editButton"
+                                            title={`Edit batch ${batch.name}`}
+                                        >
+                                            <Pencil />
+                                        </button>
+                                        <button
+                                            onClick={() => deleteBatch(batch)}
+                                            className="deleteButton"
+                                            title={`Delete batch ${batch.name}`}
+                                        >
+                                            <Trash2 />
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <p className="employeeCount">{batchEmployees.length} Employee(s) Assigned</p>
+
+                                <div className="statusBlock">
+                                    <div className="statusRow">
+                                        <Clock />
+                                        Last Payment: <span>{formatDate(batch.lastPaymentDate)}</span>
+                                    </div>
+                                    <div className="statusRow">
+                                        <p>Total Payments: <span>{batch.paymentCount || 0}</span></p>
+                                        <p>Batch Total: <span className="batchTotal">{totalSalary.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span></p>
+                                    </div>
+                                    {batch.debitAccount && (
+                                        <div className="statusRow">
+                                            <Landmark />
+                                            Debit Acct: <span>{batch.debitAccount}</span>
+                                        </div>
+                                    )}
+                                    {batch.currency && (
+                                        <div className="statusRow">
+                                            <CircleDollarSign />
+                                            Currency: <span>{batch.currency}</span>
+                                        </div>
+                                    )}
+                                    {/* --- NEW DISPLAY LOGIC --- */}
+                                    {batch.userId && (
+                                        <div className="statusRow">
+                                            <User />
+                                            Initiated By: <span>{batch.userId}</span>
+                                        </div>
+                                    )}
+                                    {/* --- END NEW DISPLAY LOGIC --- */}
+                                </div>
+
+                                <div className="employeeList">
+                                    {batchEmployees.length > 0 ? (
+                                        batchEmployees.map(emp => (
+                                            <div key={emp.id} className="employeeChip">
+                                                <div className="employeeHeader">
+                                                    <span>{emp.name}</span>
+                                                    <div className="employeeHeader-right">
+                                                        <span className="employeeSalary">
+                                                            {emp.salaryAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                                        </span>
+                                                        <button 
+                                                            className="unassignButton"
+                                                            title={`Unassign ${emp.name}`}
+                                                            onClick={() => unassignEmployee(emp.id)}
+                                                        >
+                                                            <X />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <div className="employeeDetails">
+                                                    <p><b>Bank:</b> {emp.bankDetails || 'N/A'}</p>
+                                                    <p><b>Dept:</b> {emp.department || 'N/A'} | <b>Ref:</b> {emp.paymentRef || 'N/A'}</p>
+                                                    {emp.notes && <p><b>Notes:</b> {emp.notes}</p>}
+                                                </div>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <p className="noEmployeesText">No employees in this batch.</p>
+                                    )}
+                                </div>
+
+                                <div className="cardFooter">
+                                    <button
+                                        onClick={() => initiatePayment(batch)}
+                                        className="button button-success"
+                                        disabled={isPayDisabled}
+                                        title={isPayDisabled ? "Cannot initiate payment: Assign employees first" : "Initiate Payment for this batch"}
+                                    >
+                                        <Send />
+                                        Initiate Payment
+                                    </button>
+
+                                    {unassignedEmployees.length > 0 && (
+                                        <select
+                                            onChange={(e) => assignEmployeeToBatch(e.target.value, batch.id)}
+                                            defaultValue=""
+                                        >
+                                            <option value="" disabled>+ Add Unassigned Employee</option>
+                                            {unassignedEmployees.map(emp => (
+                                                <option key={emp.id} value={emp.id}>{emp.name}</option>
+                                            ))}
+                                        </select>
+                                    )}
+                                </div>
+                            </div>
+                        );
+                    })
+                )}
+            </div>
+        </div>
+    );
+};
+
+export default BatchList;
