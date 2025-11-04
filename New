@@ -1,0 +1,435 @@
+package com.yourcompany.payroll.controller;
+
+import com.yourcompany.payroll.controller.dto.CreateBatchRequestDto;
+import com.yourcompany.payroll.controller.dto.BankAccountDto;
+import com.yourcompany.payroll.controller.dto.BatchDto;
+import com.yourcompany.payroll.controller.dto.EmployeeDto;
+import com.yourcompany.payroll.controller.dto.PaymentDetailsDto;
+import com.yourcompany.payroll.model.BankAccount;
+import com.yourcompany.payroll.model.Batch;
+import com.yourcompany.payroll.model.Employee;
+import com.yourcompany.payroll.repository.BankAccountRepository;
+import com.yourcompany.payroll.repository.BatchRepository;
+import com.yourcompany.payroll.repository.EmployeeRepository;
+import jakarta.persistence.EntityNotFoundException;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellType;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook; // For .xlsx files
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.InputStream; // For reading file
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashMap; // For header mapping
+import java.util.Iterator; // For iterating rows
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+@RestController
+@RequestMapping("/api")
+public class PayrollController {
+
+    private final BatchRepository batchRepository;
+    private final EmployeeRepository employeeRepository;
+    private final BankAccountRepository bankAccountRepository;
+
+    @Autowired
+    public PayrollController(BatchRepository batchRepository,
+                             EmployeeRepository employeeRepository,
+                             BankAccountRepository bankAccountRepository) {
+        this.batchRepository = batchRepository;
+        this.employeeRepository = employeeRepository;
+        this.bankAccountRepository = bankAccountRepository;
+    }
+
+    // --- Batch Endpoints ---
+
+    @GetMapping("/batches")
+    public ResponseEntity<List<BatchDto>> getAllBatches() {
+        List<Batch> batches = batchRepository.findAll();
+        List<BatchDto> batchDtos = batches.stream()
+                .map(this::convertToBatchDto)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(batchDtos);
+    }
+
+    @PostMapping("/batches")
+    @Transactional
+    public ResponseEntity<BatchDto> createBatch(@RequestBody CreateBatchRequestDto createRequest) {
+        String name = createRequest.getName();
+        if (name == null || name.trim().length() < 2) {
+            return ResponseEntity.badRequest().build();
+        }
+        Batch newBatch = new Batch(name.trim());
+        Batch savedBatch = batchRepository.save(newBatch);
+        return ResponseEntity.status(HttpStatus.CREATED).body(convertToBatchDto(savedBatch));
+    }
+
+    @PutMapping("/batches/{id}")
+    @Transactional
+    public ResponseEntity<BatchDto> updateBatchName(@PathVariable Long id, @RequestBody Map<String, String> payload) {
+        String newName = payload.get("name");
+        if (newName == null || newName.trim().length() < 2) {
+            return ResponseEntity.badRequest().build();
+        }
+        Batch batch = batchRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Batch not found with id: " + id));
+
+        batch.setName(newName.trim());
+        Batch updatedBatch = batchRepository.save(batch);
+        return ResponseEntity.ok(convertToBatchDto(updatedBatch));
+    }
+
+    @DeleteMapping("/batches/{id}")
+    @Transactional
+    public ResponseEntity<Void> deleteBatch(@PathVariable Long id) {
+        if (!batchRepository.existsById(id)) {
+             throw new EntityNotFoundException("Batch not found with id: " + id);
+        }
+        employeeRepository.unassignEmployeesByBatchId(id);
+        batchRepository.deleteById(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    // --- Employee Endpoints ---
+
+    @GetMapping("/employees")
+    public ResponseEntity<List<EmployeeDto>> getAllEmployees() {
+        List<Employee> employees = employeeRepository.findAll();
+        List<EmployeeDto> employeeDtos = employees.stream()
+                .map(this::convertToEmployeeDto)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(employeeDtos);
+    }
+
+    @PostMapping("/employees")
+    @Transactional
+    public ResponseEntity<EmployeeDto> addEmployee(@RequestBody EmployeeDto employeeDto) {
+        if (employeeDto.getName() == null || employeeDto.getName().trim().isEmpty() ||
+            employeeDto.getSalaryAmount() == null || employeeDto.getSalaryAmount().compareTo(BigDecimal.ZERO) <= 0 ||
+            employeeDto.getBankDetails() == null || employeeDto.getBankDetails().trim().isEmpty()) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        Employee employee = new Employee();
+        employee.setName(employeeDto.getName().trim());
+        employee.setSalaryAmount(employeeDto.getSalaryAmount());
+        employee.setBankDetails(employeeDto.getBankDetails().trim());
+        employee.setPaymentRef(employeeDto.getPaymentRef());
+        employee.setDepartment(employeeDto.getDepartment());
+        employee.setNotes(employeeDto.getNotes());
+
+        if (employeeDto.getBatchId() != null) {
+            Batch batch = batchRepository.findById(employeeDto.getBatchId())
+                    .orElseThrow(() -> new EntityNotFoundException("Batch not found for assignment with id: " + employeeDto.getBatchId()));
+            employee.setBatch(batch);
+        }
+
+        Employee savedEmployee = employeeRepository.save(employee);
+        return ResponseEntity.status(HttpStatus.CREATED).body(convertToEmployeeDto(savedEmployee));
+    }
+
+    @DeleteMapping("/employees/{id}")
+    @Transactional
+    public ResponseEntity<Void> deleteEmployee(@PathVariable Long id) {
+         if (!employeeRepository.existsById(id)) {
+             throw new EntityNotFoundException("Employee not found with id: " + id);
+        }
+        employeeRepository.deleteById(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/employees/{employeeId}/assign/{batchId}")
+    @Transactional
+    public ResponseEntity<EmployeeDto> assignEmployeeToBatch(@PathVariable Long employeeId, @PathVariable Long batchId) {
+        Employee employee = employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new EntityNotFoundException("Employee not found with id: " + employeeId));
+        Batch batch = batchRepository.findById(batchId)
+                .orElseThrow(() -> new EntityNotFoundException("Batch not found with id: " + batchId));
+
+        employee.setBatch(batch);
+        Employee updatedEmployee = employeeRepository.save(employee);
+        return ResponseEntity.ok(convertToEmployeeDto(updatedEmployee));
+    }
+
+    @PutMapping("/employees/{employeeId}/unassign")
+    @Transactional
+    public ResponseEntity<EmployeeDto> unassignEmployee(@PathVariable Long employeeId) {
+        Employee employee = employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new EntityNotFoundException("Employee not found with id: " + employeeId));
+
+        employee.setBatch(null);
+        Employee updatedEmployee = employeeRepository.save(employee);
+        return ResponseEntity.ok(convertToEmployeeDto(updatedEmployee));
+    }
+
+
+    // --- Bulk Upload Endpoint ---
+    @PostMapping("/employees/bulk-upload")
+    @Transactional
+    public ResponseEntity<?> bulkUploadEmployees(@RequestParam("file") MultipartFile file) { // Changed return to ResponseEntity<?>
+        if (file.isEmpty()) {
+            return ResponseEntity.badRequest().body("File is empty.");
+        }
+
+        String originalFilename = file.getOriginalFilename();
+        
+        // Ensure it's an .xlsx file, as that's what poi-ooxml handles
+        if (originalFilename == null || !originalFilename.endsWith(".xlsx")) {
+             return ResponseEntity.badRequest().body("Invalid file type. Please upload an .xlsx file.");
+        }
+
+        String batchName = originalFilename.replaceAll("\\.xlsx$", "").replaceAll("[^a-zA-Z0-9\\s-]", "").trim();
+        if (batchName.isEmpty()) batchName = "Uploaded Batch " + LocalDateTime.now();
+        
+        List<Employee> parsedEmployees;
+        try (InputStream is = file.getInputStream()) {
+            parsedEmployees = parseExcelFile(is); // Call helper method
+        } catch (Exception e) {
+            e.printStackTrace(); // Log the error
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error reading file: " + e.getMessage());
+        }
+
+        if (parsedEmployees.isEmpty()){
+             System.out.println("File was parsed, but no valid employee data was found.");
+             // Return a specific error if no employees were found
+             return ResponseEntity.badRequest().body("File processed, but no employees were found or headers are incorrect.");
+        }
+
+        // --- All checks passed, create batch and save employees ---
+        Batch newBatch = new Batch(batchName);
+        Batch savedBatch = batchRepository.save(newBatch);
+
+        for (Employee emp : parsedEmployees) {
+            emp.setBatch(savedBatch);
+        }
+        employeeRepository.saveAll(parsedEmployees);
+
+        Batch finalBatch = batchRepository.findById(savedBatch.getId()).get();
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(convertToBatchDto(finalBatch));
+    }
+
+
+    // --- Payment Initiation Endpoint ---
+
+    @PostMapping("/batches/{id}/initiate-payment")
+    @Transactional
+    public ResponseEntity<?> initiatePayment(@PathVariable Long id, @RequestBody PaymentDetailsDto paymentDetails) {
+         if (paymentDetails.getDebitAccount() == null || paymentDetails.getDebitAccount().trim().isEmpty()) {
+            return ResponseEntity.badRequest().body("Debit account is required.");
+        }
+         if (paymentDetails.getUserId() == null || paymentDetails.getUserId().trim().isEmpty()) {
+            return ResponseEntity.badRequest().body("User ID is required.");
+         }
+        
+        BankAccount debitAccount = bankAccountRepository.findByAccountNumber(paymentDetails.getDebitAccount())
+             .orElseThrow(() -> new EntityNotFoundException("Selected Debit Account not found: " + paymentDetails.getDebitAccount()));
+
+        Batch batch = batchRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Batch not found with id: " + id));
+
+        List<Employee> employeesInBatch = employeeRepository.findByBatchId(id);
+
+        if (employeesInBatch.isEmpty()) {
+            System.err.println("Attempted to initiate payment for empty batch: " + id);
+             return ResponseEntity.status(HttpStatus.CONFLICT).body("Cannot initiate payment: Batch has no assigned employees.");
+        }
+
+        BigDecimal totalPaymentAmount = employeesInBatch.stream()
+                .map(Employee::getSalaryAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        if (debitAccount.getBalance().compareTo(totalPaymentAmount) < 0) {
+            System.err.println("Insufficient balance for batch " + id + ". Required: " + totalPaymentAmount + ", Available: " + debitAccount.getBalance());
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                   .body("Insufficient balance in account " + debitAccount.getAccountNumber() +
+                         ". Required: " + totalPaymentAmount + ", Available: " + debitAccount.getBalance() +
+                         ". Please select another account.");
+        }
+
+        batch.setPaymentCount(batch.getPaymentCount() + 1);
+        batch.setLastPaymentDate(LocalDateTime.now());
+        batch.setPaymentStatus("Pending");
+        batch.setDebitAccount(paymentDetails.getDebitAccount());
+        batch.setCurrency(paymentDetails.getCurrency());
+        batch.setUserId(paymentDetails.getUserId().trim());
+
+        System.out.println("Payment initiated (Status: Pending) by User: " + paymentDetails.getUserId() +
+                           " for batch " + id + " from account " + paymentDetails.getDebitAccount() +
+                           " type: " + paymentDetails.getPayrollType() + " currency: " + paymentDetails.getCurrency() +
+                           " Amount: " + totalPaymentAmount);
+
+        Batch updatedBatch = batchRepository.save(batch);
+        return ResponseEntity.ok(convertToBatchDto(updatedBatch));
+    }
+
+    // --- Bank Accounts Endpoint ---
+
+    @GetMapping("/bank-accounts")
+    public ResponseEntity<List<BankAccountDto>> getBankAccounts() {
+        List<BankAccount> accounts = bankAccountRepository.findAll();
+        List<BankAccountDto> accountDtos = accounts.stream()
+                .map(this::convertToBankAccountDto)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(accountDtos);
+    }
+
+
+    // --- Helper Methods ---
+    
+    private List<Employee> parseExcelFile(InputStream is) throws Exception {
+        List<Employee> employees = new ArrayList<>();
+        Workbook workbook = new XSSFWorkbook(is);
+        Sheet sheet = workbook.getSheetAt(0);
+        
+        Iterator<Row> rows = sheet.iterator();
+        
+        if (!rows.hasNext()) {
+            workbook.close();
+            throw new Exception("File is empty.");
+        }
+
+        // 1. Read Headers
+        Row headerRow = rows.next();
+        Map<String, Integer> headerMap = new HashMap<>();
+        for (Cell cell : headerRow) {
+            String headerText = getCellValueAsString(cell).toLowerCase().replaceAll("\\s+", ""); // Normalize header
+            headerMap.put(headerText, cell.getColumnIndex());
+        }
+
+        // 2. Check for required headers
+        if (!headerMap.containsKey("name") && !headerMap.containsKey("payeename")) {
+            workbook.close();
+            throw new Exception("Missing required header: 'name' or 'payeename'");
+        }
+        if (!headerMap.containsKey("salaryamount")) {
+            workbook.close();
+            throw new Exception("Missing required header: 'salaryAmount'");
+        }
+         if (!headerMap.containsKey("bankdetails") && !headerMap.containsKey("beneficiarydetails")) {
+            workbook.close();
+            throw new Exception("Missing required header: 'bankDetails' or 'beneficiarydetails'");
+        }
+
+        // 3. Read Data Rows
+        while (rows.hasNext()) {
+            Row currentRow = rows.next();
+            
+            // Get required values
+            String name = getCellValueAsString(currentRow.getCell(headerMap.getOrDefault("name", headerMap.get("payeename"))));
+            BigDecimal salaryAmount = getCellValueAsNumeric(currentRow.getCell(headerMap.get("salaryamount")));
+            String bankDetails = getCellValueAsString(currentRow.getCell(headerMap.getOrDefault("bankdetails", headerMap.get("beneficiarydetails"))));
+
+            // Skip row if required fields are blank
+            if (name.isEmpty() || salaryAmount == null || bankDetails.isEmpty()) {
+                System.out.println("Skipping row " + currentRow.getRowNum() + ": missing required data.");
+                continue;
+            }
+            
+            // Get optional values
+            String paymentRef = getCellValueAsString(currentRow.getCell(headerMap.get("paymentref")));
+            String department = getCellValueAsString(currentRow.getCell(headerMap.get("department")));
+            String notes = getCellValueAsString(currentRow.getCell(headerMap.get("notes")));
+
+            // Create and add employee
+            Employee employee = new Employee(name, salaryAmount, bankDetails, paymentRef, department, notes);
+            employees.add(employee);
+        }
+
+        workbook.close();
+        return employees;
+    }
+    
+    private String getCellValueAsString(Cell cell) {
+        if (cell == null) {
+            return "";
+        }
+        if (cell.getCellType() == CellType.STRING) {
+            return cell.getStringCellValue().trim();
+        } else if (cell.getCellType() == CellType.NUMERIC) {
+            // Convert numeric cell to string
+            return new BigDecimal(cell.getNumericCellValue()).toPlainString();
+        } else {
+            return "";
+        }
+    }
+    
+    private BigDecimal getCellValueAsNumeric(Cell cell) {
+        if (cell == null) {
+            return null;
+        }
+        if (cell.getCellType() == CellType.NUMERIC) {
+            return BigDecimal.valueOf(cell.getNumericCellValue());
+        } else if (cell.getCellType() == CellType.STRING) {
+            // Try to parse string to number
+            try {
+                return new BigDecimal(cell.getStringCellValue().trim());
+            } catch (NumberFormatException e) {
+                return null; // Invalid number format
+            }
+        } else {
+            return null;
+        }
+    }
+
+    private BatchDto convertToBatchDto(Batch batch) {
+        long employeeCount = employeeRepository.countByBatchId(batch.getId());
+        return new BatchDto(
+                batch.getId(),
+                batch.getName(),
+                batch.getPaymentCount(),
+                batch.getLastPaymentDate(),
+                batch.getPaymentStatus(),
+                employeeCount,
+                batch.getDebitAccount(),
+                batch.getCurrency(),
+                batch.getUserId()
+        );
+    }
+
+    private EmployeeDto convertToEmployeeDto(Employee employee) {
+        Long batchId = (employee.getBatch() != null) ? employee.getBatch().getId() : null;
+        return new EmployeeDto(
+                employee.getId(),
+                employee.getName(),
+                employee.getSalaryAmount(),
+                employee.getBankDetails(),
+                employee.getPaymentRef(),
+                employee.getDepartment(),
+                employee.getNotes(),
+                batchId
+        );
+    }
+
+    private BankAccountDto convertToBankAccountDto(BankAccount account) {
+        return new BankAccountDto(
+            account.getId(),
+            account.getAccountNumber(),
+            account.getAccountName(),
+            account.getBalance()
+        );
+    }
+
+     // --- Exception Handling ---
+     @ExceptionHandler(EntityNotFoundException.class)
+     public ResponseEntity<String> handleEntityNotFound(EntityNotFoundException ex) {
+         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
+     }
+
+     @ExceptionHandler(Exception.class)
+     public ResponseEntity<String> handleGenericException(Exception ex) {
+         ex.printStackTrace();
+         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An unexpected error occurred: " + ex.getMessage());
+     }
+}
